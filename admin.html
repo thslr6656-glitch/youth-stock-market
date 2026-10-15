@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ 청춘 주식시장 - 특정 팀 코인 지급 관리자 패널</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #f43f5e;
+            --accent-yellow: #fbbf24;
+            --accent-purple: #c084fc;
+            --text-main: #f8fafc;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; display: flex; flex-direction: column; gap: 14px; width: 100%; }
+        header { background: linear-gradient(90deg, #1e1b4b, #3730a3); padding: 14px 20px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #6366f1; }
+        header h1 { font-size: 1.4rem; color: #a5b4fc; }
+
+        .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .card-title { font-size: 1.05rem; font-weight: bold; padding-bottom: 6px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        
+        button { background-color: #2563eb; color: white; border: none; padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.88rem; }
+        button:hover { opacity: 0.9; }
+        .btn-green { background-color: var(--accent-green); }
+        .btn-yellow { background-color: var(--accent-yellow); color: #000; }
+        .btn-purple { background-color: var(--accent-purple); color: #000; }
+        .btn-red { background-color: var(--accent-red); }
+
+        input, select, textarea {
+            background: #0b1120;
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+
+        .news-preview { background: #0b1120; padding: 12px; border-radius: 6px; font-size: 0.9rem; line-height: 1.4; display: flex; flex-direction: column; gap: 8px; }
+        .multi-stock-box { display: grid; grid-template-columns: 3fr 1fr; gap: 8px; background: #1e293b; padding: 6px 10px; border-radius: 6px; }
+
+        .sheet-container { overflow-x: auto; max-height: 380px; overflow-y: auto; }
+        .sheet-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; }
+        .sheet-table th, .sheet-table td { border: 1px solid var(--border-color); padding: 6px; }
+        .sheet-table th { background: #0b1120; color: var(--accent-blue); position: sticky; top: 0; }
+        .sheet-table input { width: 45px; background: #0b1120; border: 1px solid #475569; color: white; text-align: center; padding: 4px; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚙️ 청춘 주식시장 거래 및 특정 팀 선택 코인 관리자 패널</h1>
+        <button onclick="resetGame()" class="btn-red">🔄 전체 게임 초기화 (기본 100코인 / 주식 0주)</button>
+    </header>
+
+    <div class="layout-grid">
+        <!-- 좌측: 가상 기사 편집 및 다중 시세 조정 -->
+        <div class="card">
+            <div class="card-title">
+                <span>📰 가상 기사 작성 및 주가 시세 반영</span>
+                <button class="btn-yellow" onclick="loadRandomNews()">🎲 무작위 기사 (15종)</button>
+            </div>
+            <div class="news-preview">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--accent-blue); font-weight:bold;">기사 제목 (헤드라인)</label>
+                    <input type="text" id="newsTitleInput" placeholder="기사 제목을 입력하세요">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--accent-blue); font-weight:bold;">상세 보도 기사 내용</label>
+                    <textarea id="newsDescInput" rows="3" placeholder="기사 상세 보도 내용을 적어주세요."></textarea>
+                </div>
+                
+                <div style="font-size: 0.8rem; color: var(--accent-yellow); font-weight: bold; margin-top: 4px;">📈 영향을 받을 종목 및 변동폭 (최대 3개)</div>
+                <div class="multi-stock-box">
+                    <select id="stockSelect1"></select>
+                    <input type="number" id="changeInput1" value="3" placeholder="변동폭">
+                </div>
+                <div class="multi-stock-box">
+                    <select id="stockSelect2"><option value="none">-- 2차 연관 종목 선택 (없음) --</option></select>
+                    <input type="number" id="changeInput2" value="0" placeholder="변동폭">
+                </div>
+                <div class="multi-stock-box">
+                    <select id="stockSelect3"><option value="none">-- 3차 연관 종목 선택 (없음) --</option></select>
+                    <input type="number" id="changeInput3" value="0" placeholder="변동폭">
+                </div>
+            </div>
+            <button class="btn-green" onclick="publishNews()">✅ 스크린으로 속보 송출 및 주가 변경</button>
+        </div>
+
+        <!-- 우측: 특정 팀 선택 코인 지급 포함 돌발 이벤트 -->
+        <div class="card">
+            <div class="card-title">
+                <span>🎯 확장 돌발 이벤트 & 특정 팀 코인 지급</span>
+                <button class="btn-purple" onclick="loadRandomEvent()">🃏 이벤트 무작위 뽑기</button>
+            </div>
+            <div class="news-preview">
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--accent-purple); font-weight:bold;">돌발 이벤트 제목</label>
+                    <input type="text" id="eventTitleInput" placeholder="예: 🎤 1팀 면접 기습 꼬리질문 성공!">
+                </div>
+                <div>
+                    <label style="font-size: 0.8rem; color: var(--accent-purple); font-weight:bold;">이벤트 미션 내용</label>
+                    <textarea id="eventDescInput" rows="2" placeholder="이벤트 미션 설명을 적어주세요."></textarea>
+                </div>
+
+                <div style="font-size: 0.8rem; color: var(--accent-yellow); font-weight: bold; margin-top: 4px;">⚡ 이벤트 보상 및 자동 효과 설정</div>
+                <div style="display: grid; grid-template-columns: 2fr 1.2fr 1fr; gap: 6px;">
+                    <select id="eventEffectType" onchange="toggleTargetSelects()">
+                        <option value="none">효과 없음 (팝업만 띄움)</option>
+                        <option value="stock_percent">특정 종목 주가 퍼센트(%) 변동</option>
+                        <option value="target_team_coin">특정 팀 선택 코인 지급/차감</option>
+                    </select>
+                    <select id="eventTargetTeamSelect">
+                        <option value="all">모든 팀 대상</option>
+                        <option value="0">1팀</option>
+                        <option value="1">2팀</option>
+                        <option value="2">3팀</option>
+                        <option value="3">4팀</option>
+                        <option value="4">5팀</option>
+                        <option value="5">6팀</option>
+                        <option value="6">7팀</option>
+                        <option value="7">8팀</option>
+                        <option value="8">9팀</option>
+                        <option value="9">10팀</option>
+                    </select>
+                    <input type="number" id="eventEffectValue" value="15" placeholder="수치/코인">
+                </div>
+                
+                <div id="eventTargetStockBox" style="margin-top: 4px; display: none;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">대상 종목 선택 (퍼센트 변동 시)</label>
+                    <select id="eventTargetStockId"></select>
+                </div>
+            </div>
+            <button class="btn-purple" onclick="publishCustomEvent()">🚀 스크린 팝업 발동 & 선택 팀 코인 지급</button>
+        </div>
+    </div>
+
+    <!-- 하단: 팀별 주식 수량 및 코인 거래 제어 시트 -->
+    <div class="card">
+        <div class="card-title">
+            <span>📊 팀별 주식 수량 변경 및 코인 환율 거래 관리</span>
+            <button class="btn-green" onclick="saveSheetData()">💾 거래 내역 적용 (시세대로 코인 자동 차감/증가)</button>
+        </div>
+        <div class="sheet-container">
+            <table class="sheet-table">
+                <thead><tr id="sheetHeader"><th>팀명</th><th>현재 보유 코인</th></tr></thead>
+                <tbody id="sheetBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const detailedNewsBank = [
+            { title: "[속보] 주요 대기업, 면접관 대면 평가 비중 80% 확대", desc: "【청춘경제】 AI 서류 검증 한계를 극복하기 위해 대면 스피치 면접 비중을 대폭 확대합니다.", s1: 'speech', c1: 4, s2: 'resume', c2: -2 },
+            { title: "[단독] 표절 및 템플릿 자소서 적발 AI 고도화 알고리즘 도입", desc: "【청춘일보】 생성형 AI로 일괄 작성된 획일적 자소서에 대한 대대적 감점이 시작되었습니다.", s1: 'resume', c1: -3, s2: 'portfolio', c2: 2 },
+            { title: "[기획] 기업 90% '생성형 AI 활용 능력 필수 조건화'", desc: "【테크타임즈】 AI 도구를 자유자재로 다루는 인재에게 파격적 가산점과 우대를 부여합니다.", s1: 'ai_tech', c1: 5, s2: 'major', c2: 1 },
+            { title: "[특집] 자격증보다 실무! '프로젝트 중심 포트폴리오' 대세", desc: "【IT&JOB】 실제 작업물 중심의 실무 입증형 포트폴리오 보유자의 가치가 급등하고 있습니다.", s1: 'portfolio', c1: 4, s2: 'license', c2: -1 },
+            { title: "[Market] '지인 추천 채용 40% 진입'… 네트워킹 파워 입증", desc: "【청춘비즈】 비공개 수시 채용 증가로 활발한 네트워크를 갖춘 구직자의 몸값이 오르고 있습니다.", s1: 'network', c1: 3, s2: 'activity', c2: 2 }
+        ];
+
+        const extendedEventBank = [
+            { title: "🎤 면접관의 기습 꼬리질문 미션 성공!", desc: "뛰어난 순발력을 발휘한 팀에게 축하 보너스 코인 지급!", type: "target_team_coin", team: "0", val: 15 },
+            { title: "😱 블라인드 자소서 주의 사항 미숙지 경고!", desc: "블라인드 가이드라인을 위반한 팀에게 코인 차감 패널티!", type: "target_team_coin", team: "1", val: -10 },
+            { title: "🤝 특급 인맥 네트워킹 찬스 성공!", desc: "현직자 지인 추천 기회를 잡은 팀에게 투자 보너스 코인 지급!", type: "target_team_coin", team: "2", val: 20 },
+            { title: "💼 실무 프로젝트 성과 발표회 대성공!", desc: "현장 프로젝트 대상을 수상한 팀에게 거액의 투자 코인 지원!", type: "target_team_coin", team: "3", val: 25 },
+            { title: "🤖 생성형 AI 경진대회 우승 쾌거!", desc: "AI 활용 프롬프트 우수 팀에게 파격적 지원금 코인 지급!", type: "target_team_coin", team: "4", val: 30 }
+        ];
+
+        function getState() {
+            const saved = localStorage.getItem('youth_market_state');
+            let state = null;
+            if (saved) { try { state = JSON.parse(saved); } catch(e){} }
+
+            if (!state || !state.teams) {
+                state = {
+                    stocks: [
+                        { id: 'speech', name: '스피치/면접주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'resume', name: '자기소개서주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'portfolio', name: '포트폴리오주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'english', name: '공인어학주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'license', name: '직무자격증주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'intern', name: '인턴십경험주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'activity', name: '대외활동주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'network', name: '네트워킹주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'ai_tech', name: 'AI활용역량주', price: 10, change: 0, history: [10, 10] },
+                        { id: 'major', name: '전공지식주', price: 10, change: 0, history: [10, 10] }
+                    ],
+                    teams: Array.from({ length: 10 }, (_, i) => ({
+                        name: `${i + 1}팀`,
+                        cash: 100,
+                        holdings: { speech: 0, resume: 0, portfolio: 0, english: 0, license: 0, intern: 0, activity: 0, network: 0, ai_tech: 0, major: 0 }
+                    })),
+                    news: { title: "주식 시장 개장 대기 중...", desc: "첫 뉴스를 발행하여 시장을 움직이세요.", effect: "영향: 없음" },
+                    activeEvent: null
+                };
+            } else {
+                state.teams.forEach(team => {
+                    if (team.cash === undefined || isNaN(team.cash)) {
+                        team.cash = team.startCash !== undefined ? team.startCash : 100;
+                    }
+                });
+            }
+            localStorage.setItem('youth_market_state', JSON.stringify(state));
+            return state;
+        }
+
+        function saveState(state) {
+            localStorage.setItem('youth_market_state', JSON.stringify(state));
+        }
+
+        window.onload = () => {
+            const state = getState();
+            initStockSelects(state);
+            renderSheet(state);
+            toggleTargetSelects();
+        };
+
+        function toggleTargetSelects() {
+            const type = document.getElementById('eventEffectType').value;
+            const stockBox = document.getElementById('eventTargetStockBox');
+            stockBox.style.display = (type === 'stock_percent') ? 'block' : 'none';
+        }
+
+        function initStockSelects(state) {
+            const s1 = document.getElementById('stockSelect1');
+            const s2 = document.getElementById('stockSelect2');
+            const s3 = document.getElementById('stockSelect3');
+            const evTarget = document.getElementById('eventTargetStockId');
+            
+            s1.innerHTML = ''; s2.innerHTML = '<option value="none">-- 2차 연관 종목 선택 (없음) --</option>'; s3.innerHTML = '<option value="none">-- 3차 연관 종목 선택 (없음) --</option>'; evTarget.innerHTML = '';
+
+            state.stocks.forEach(s => {
+                const opt = `<option value="${s.id}">${s.name} (현재 ${s.price}코인)</option>`;
+                s1.innerHTML += opt;
+                s2.innerHTML += opt;
+                s3.innerHTML += opt;
+                evTarget.innerHTML += opt;
+            });
+        }
+
+        function loadRandomNews() {
+            const n = detailedNewsBank[Math.floor(Math.random() * detailedNewsBank.length)];
+            document.getElementById('newsTitleInput').value = n.title;
+            document.getElementById('newsDescInput').value = n.desc;
+            document.getElementById('stockSelect1').value = n.s1;
+            document.getElementById('changeInput1').value = n.c1;
+            document.getElementById('stockSelect2').value = n.s2 || 'none';
+            document.getElementById('changeInput2').value = n.c2 || 0;
+            document.getElementById('stockSelect3').value = n.s3 || 'none';
+            document.getElementById('changeInput3').value = n.c3 || 0;
+        }
+
+        function loadRandomEvent() {
+            const ev = extendedEventBank[Math.floor(Math.random() * extendedEventBank.length)];
+            document.getElementById('eventTitleInput').value = ev.title;
+            document.getElementById('eventDescInput').value = ev.desc;
+            document.getElementById('eventEffectType').value = ev.type;
+            document.getElementById('eventTargetTeamSelect').value = ev.team || "all";
+            document.getElementById('eventEffectValue').value = ev.val || 15;
+            toggleTargetSelects();
+        }
+
+        function publishNews() {
+            let state = getState();
+            const title = document.getElementById('newsTitleInput').value;
+            const desc = document.getElementById('newsDescInput').value;
+
+            if (!title) { alert("기사 제목을 입력해주세요!"); return; }
+
+            let effectTexts = [];
+            for(let i=1; i<=3; i++) {
+                const stockId = document.getElementById(`stockSelect${i}`).value;
+                const change = parseInt(document.getElementById(`changeInput${i}`).value) || 0;
+
+                if (stockId !== 'none' && change !== 0) {
+                    const target = state.stocks.find(s => s.id === stockId);
+                    if (target) {
+                        target.price += change;
+                        if (target.price < 1) target.price = 1;
+                        target.change = change;
+                        if(!target.history) target.history = [10, target.price];
+                        target.history.push(target.price);
+                        if (target.history.length > 10) target.history.shift();
+                        effectTexts.push(`${target.name} ${change > 0 ? '+' : ''}${change}`);
+                    }
+                }
+            }
+
+            state.activeEvent = null;
+            state.news = { title: title, desc: desc, effect: `[속보 변동] ${effectTexts.join(', ') || '영향 없음'}` };
+
+            saveState(state);
+            initStockSelects(state);
+            renderSheet(state);
+            alert("대형 스크린으로 속보와 시세가 즉시 반영되었습니다!");
+        }
+
+        // 특정 팀을 선택하여 코인을 지급/차감하는 핵심 로직
+        function publishCustomEvent() {
+            let state = getState();
+            const title = document.getElementById('eventTitleInput').value;
+            const desc = document.getElementById('eventDescInput').value;
+            const effectType = document.getElementById('eventEffectType').value;
+            const targetTeamVal = document.getElementById('eventTargetTeamSelect').value;
+            const effectVal = parseFloat(document.getElementById('eventEffectValue').value) || 0;
+            const targetStockId = document.getElementById('eventTargetStockId').value;
+
+            if(!title) { alert("이벤트 제목을 입력해주세요!"); return; }
+
+            let effectSummary = "";
+
+            if (effectType === 'stock_percent') {
+                const targetStock = state.stocks.find(s => s.id === targetStockId);
+                if (targetStock) {
+                    const diff = Math.round(targetStock.price * (effectVal / 100));
+                    targetStock.price += diff;
+                    if (targetStock.price < 1) targetStock.price = 1;
+                    targetStock.change = diff;
+                    targetStock.history.push(targetStock.price);
+                    if (targetStock.history.length > 10) targetStock.history.shift();
+                    effectSummary = ` [이벤트 효과] ${targetStock.name} ${effectVal}% (${diff > 0 ? '+' : ''}${diff}코인) 변동!`;
+                }
+            } else if (effectType === 'target_team_coin') {
+                if (targetTeamVal === 'all') {
+                    state.teams.forEach(team => { team.cash += effectVal; });
+                    effectSummary = ` [이벤트 효과] 모든 팀에게 보너스 ${effectVal}코인 지급 완료!`;
+                } else {
+                    const teamIdx = parseInt(targetTeamVal);
+                    if (state.teams[teamIdx]) {
+                        state.teams[teamIdx].cash += effectVal;
+                        effectSummary = ` [이벤트 효과] ${state.teams[teamIdx].name}에게 ${effectVal > 0 ? '+' : ''}${effectVal}코인 지급/차감 완료!`;
+                    }
+                }
+            }
+
+            state.activeEvent = { title: title, desc: desc + effectSummary };
+            saveState(state);
+            renderSheet(state);
+            alert("대형 스크린에 돌발 이벤트가 발동되었으며, 지정된 팀으로 코인이 지급되었습니다!");
+        }
+
+        function renderSheet(state) {
+            const headerRow = document.getElementById('sheetHeader');
+            const sheetBody = document.getElementById('sheetBody');
+            
+            headerRow.innerHTML = '<th>팀명</th><th>현재 보유 코인</th>';
+            state.stocks.forEach(stock => {
+                headerRow.innerHTML += `<th>${stock.name.split('/')[0]}<br><span style="font-size:0.7rem; color:var(--accent-yellow);">(${stock.price}코인)</span></th>`;
+            });
+
+            sheetBody.innerHTML = '';
+            state.teams.forEach((team, teamIdx) => {
+                const currentCash = (team.cash !== undefined && !isNaN(team.cash)) ? team.cash : 100;
+                let rowHtml = `<tr>
+                    <td style="font-weight:bold; color:var(--accent-blue);">${team.name}</td>
+                    <td style="font-weight:bold; color:var(--accent-green);">${currentCash}코인</td>`;
+                
+                state.stocks.forEach(stock => {
+                    const count = team.holdings[stock.id] || 0;
+                    rowHtml += `<td><input type="number" id="cell_${teamIdx}_${stock.id}" value="${count}"></td>`;
+                });
+                rowHtml += `</tr>`;
+                sheetBody.innerHTML += rowHtml;
+            });
+        }
+
+        function saveSheetData() {
+            let state = getState();
+
+            state.teams.forEach((team, teamIdx) => {
+                if (team.cash === undefined || isNaN(team.cash)) team.cash = 100;
+
+                state.stocks.forEach(stock => {
+                    const inputElem = document.getElementById(`cell_${teamIdx}_${stock.id}`);
+                    if (inputElem) {
+                        const newCount = Math.max(0, parseInt(inputElem.value) || 0);
+                        const oldCount = team.holdings[stock.id] || 0;
+                        const diff = newCount - oldCount;
+
+                        if (diff !== 0) {
+                            const transactionAmount = diff * stock.price;
+                            if (diff > 0 && team.cash < transactionAmount) {
+                                alert(`${team.name}의 코인이 부족합니다! (현재 코인: ${team.cash}코인, 필요: ${transactionAmount}코인)`);
+                                inputElem.value = oldCount;
+                                return;
+                            }
+                            team.cash -= transactionAmount;
+                            team.holdings[stock.id] = newCount;
+                        }
+                    }
+                });
+            });
+
+            saveState(state);
+            renderSheet(state);
+            alert("거래 내역이 적용되어 시세에 맞게 코인이 정상 정산되었습니다!");
+        }
+
+        function resetGame() {
+            if (confirm("게임을 완전 리셋하시겠습니까?")) {
+                localStorage.removeItem('youth_market_state');
+                const newState = getState();
+                saveState(newState);
+                initStockSelects(newState);
+                renderSheet(newState);
+                alert("게임이 초기 상태로 리셋되었습니다.");
+            }
+        }
+    </script>
+</body>
+</html>
