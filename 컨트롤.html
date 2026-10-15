@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ 청춘 주식시장 - 관리자 조작 패널</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+            --accent-purple: #a855f7;
+            --text-main: #f8fafc;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        header {
+            background: linear-gradient(90deg, #1e1b4b, #312e81);
+            padding: 12px 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #4338ca;
+        }
+        header h1 { font-size: 1.4rem; color: #818cf8; }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover { opacity: 0.9; }
+        .btn-green { background-color: var(--accent-green); }
+        .btn-yellow { background-color: var(--accent-yellow); color: #000; }
+        .btn-purple { background-color: var(--accent-purple); }
+
+        .news-preview { background: #0f172a; padding: 12px; border-radius: 6px; font-size: 0.9rem; line-height: 1.4; }
+
+        /* 1~10팀 수량 일괄 관리 테이블 */
+        .sheet-container {
+            overflow-x: auto;
+            max-height: 380px;
+            overflow-y: auto;
+        }
+        .sheet-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.85rem; }
+        .sheet-table th, .sheet-table td { border: 1px solid var(--border-color); padding: 4px; }
+        .sheet-table th { background: #0f172a; color: var(--accent-blue); position: sticky; top: 0; }
+        .sheet-table input {
+            width: 45px;
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: white;
+            text-align: center;
+            padding: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚙️ 청춘 주식시장 통합 관리자 컨트롤러</h1>
+        <button onclick="openDisplayWindow()" class="btn-green">🖥️ 대형 스크린 창 열기</button>
+    </header>
+
+    <div class="grid-container">
+        <!-- 1. 실감나는 뉴스 제어 -->
+        <div class="card">
+            <div class="card-title">
+                <span>📰 가상 상세 뉴스 생성 및 승인</span>
+                <button class="btn-yellow" onclick="generateNews()">🎲 뉴스 뽑기</button>
+            </div>
+            <div class="news-preview" id="adminNewsPreview">
+                <div style="font-weight: bold; color:var(--accent-blue);" id="adNewsTitle">뉴스 대기 중...</div>
+                <div id="adNewsDesc" style="color: #cbd5e1; margin-top:6px;">버튼을 누르면 언론사 스타일의 상세 가상 뉴스가 생성됩니다.</div>
+                <div id="adNewsEffect" style="color: var(--accent-yellow); margin-top:6px;">영향: 없음</div>
+            </div>
+            <button class="btn-green" id="adminApproveBtn" onclick="approveNews()" disabled>✅ MC 승인 (스크린 시세 반영)</button>
+        </div>
+
+        <!-- 2. 돌발 이벤트 제어 -->
+        <div class="card">
+            <div class="card-title">
+                <span>🎯 대형 스크린 돌발 이벤트 연출</span>
+                <button class="btn-purple" onclick="drawEventCard()">🃏 돌발 이벤트 발동</button>
+            </div>
+            <div class="news-preview">
+                <div style="font-weight: bold; color: var(--accent-yellow);" id="adEventTitle">이벤트 대기 중</div>
+                <div id="adEventDesc" style="color: #cbd5e1; margin-top:6px;">이벤트를 발동하면 대형 스크린 전체에 화려한 경보 팝업이 뜹니다.</div>
+            </div>
+        </div>
+
+        <!-- 3. 1~10팀 일괄 보유 수량 수정 시트 (핵심) -->
+        <div class="card" style="grid-column: 1 / 3;">
+            <div class="card-title">
+                <span>📥 1팀~10팀 주식 보유 수량 일괄 관리 시트</span>
+                <button class="btn-green" onclick="saveSheetData()">💾 전체 팀 수량 변경사항 적용하기</button>
+            </div>
+            <div class="sheet-container">
+                <table class="sheet-table">
+                    <thead>
+                        <tr id="sheetHeader">
+                            <th>팀명</th>
+                            <!-- 종목 헤더 JS 추가 -->
+                        </tr>
+                    </thead>
+                    <tbody id="sheetBody">
+                        <!-- 1~10팀 수량 입력창 JS 추가 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const channel = new BroadcastChannel('youth_stock_channel');
+
+        let appState = {
+            stocks: [
+                { id: 'speech', name: '스피치/면접주', price: 10, change: 0 },
+                { id: 'resume', name: '자기소개서주', price: 10, change: 0 },
+                { id: 'portfolio', name: '포트폴리오주', price: 10, change: 0 },
+                { id: 'english', name: '공인어학주', price: 10, change: 0 },
+                { id: 'license', name: '직무자격증주', price: 10, change: 0 },
+                { id: 'intern', name: '인턴십경험주', price: 10, change: 0 },
+                { id: 'activity', name: '대외활동주', price: 10, change: 0 },
+                { id: 'network', name: '네트워킹주', price: 10, change: 0 },
+                { id: 'ai_tech', name: 'AI활용역량주', price: 10, change: 0 },
+                { id: 'major', name: '전공지식주', price: 10, change: 0 }
+            ],
+            teams: Array.from({ length: 10 }, (_, i) => ({
+                name: `${i + 1}팀`,
+                holdings: { speech: 1, resume: 1, portfolio: 0, english: 0, license: 1, intern: 0, activity: 1, network: 0, ai_tech: 0, major: 1 }
+            })),
+            news: {
+                title: "뉴스 대기 중...",
+                desc: "뉴스를 생성하고 MC 승인을 누르면 시세에 반영됩니다.",
+                effect: "영향: 없음"
+            },
+            activeEvent: null
+        };
+
+        // 생동감 있고 사실적인 뉴스 데이터
+        const newsList = [
+            { 
+                title: "[속보] 주요 주요 대기업, 면접관 대면 평가 대폭 확대 발표", 
+                desc: "【청춘경제】 AI 서류 검증의 한계를 느낀 10대 그룹 인사담당자들이 최종 단계에서 스피치 및 설득력을 평가하는 '심층 대면 면접' 비중을 기존 30%에서 70%로 확대한다고 전격 발표했습니다.", 
+                stockId: 'speech', change: 4 
+            },
+            { 
+                title: "[단독] '표절 자소서 잡는다'… 인사혁신처, AI 서류검증 고도화 도입", 
+                desc: "【청춘일보】 단순 생성형 AI로 작성된 획일화된 자기소개서를 적발하는 차세대 알고리즘이 도입되었습니다. 템플릿형 자소서를 제출한 지원자들에 대한 감점 조치가 예고되었습니다.", 
+                stockId: 'resume', change: -3 
+            },
+            { 
+                title: "[특집] '백 마디 말보다 한 줄의 결과물'… 실무 포트폴리오 채용 유행", 
+                desc: "【IT투데이】 주요 스타트업 및 중견기업에서 스펙을 배제하고 실무 작업물이 담긴 포트폴리오만으로 인재를 채용하는 '프로젝트 중심 채용'이 시장을 주도하고 있습니다.", 
+                stockId: 'portfolio', change: 3 
+            },
+            { 
+                title: "[기획] 기업 85% '생성형 AI 활용 능력, 필수 직무 역량으로 평가'", 
+                desc: "【테크타임즈】 국내 주요 기업 인사팀 조사 결과, ChatGPT 및 생성형 AI 도구를 업무에 즉시 활용할 수 있는 인재에게 서류 및 면접 시 가산점을 부여하는 방안이 확정되었습니다.", 
+                stockId: 'ai_tech', change: 4 
+            },
+            { 
+                title: "[Market] 경력직 선호 현상에 '인턴십 경험' 몸값 고공행진", 
+                desc: "【청춘비즈】 신입 채용 시장에서도 바로 현장에 투입 가능한 인턴십 및 실무 경험 보유 인재의 수요가 급증하며 관련 역량의 가치가 폭등하고 있습니다.", 
+                stockId: 'intern', change: 3 
+            }
+        ];
+
+        let pendingNews = null;
+
+        function broadcastState() {
+            channel.postMessage(appState);
+            localStorage.setItem('youth_stock_state', JSON.stringify(appState));
+        }
+
+        function initAdmin() {
+            renderSheet();
+            broadcastState();
+        }
+
+        // 1~10팀 수량 일괄 입력 시트 생성
+        function renderSheet() {
+            const headerRow = document.getElementById('sheetHeader');
+            const sheetBody = document.getElementById('sheetBody');
+
+            // 헤더 종목명 추가
+            appState.stocks.forEach(stock => {
+                headerRow.innerHTML += `<th>${stock.name.split('/')[0]}</th>`;
+            });
+
+            // 팀별 Row 생성
+            sheetBody.innerHTML = '';
+            appState.teams.forEach((team, teamIdx) => {
+                let rowHtml = `<tr><td style="font-weight:bold;">${team.name}</td>`;
+                appState.stocks.forEach(stock => {
+                    const count = team.holdings[stock.id] || 0;
+                    rowHtml += `<td><input type="number" id="cell_${teamIdx}_${stock.id}" value="${count}"></td>`;
+                });
+                rowHtml += `</tr>`;
+                sheetBody.innerHTML += rowHtml;
+            });
+        }
+
+        // 전체 팀 수량 변경 일괄 적용
+        function saveSheetData() {
+            appState.teams.forEach((team, teamIdx) => {
+                appState.stocks.forEach(stock => {
+                    const inputVal = parseInt(document.getElementById(`cell_${teamIdx}_${stock.id}`).value) || 0;
+                    team.holdings[stock.id] = Math.max(0, inputVal);
+                });
+            });
+            broadcastState();
+            alert("10개 팀의 보유 주식 수량이 대형 스크린에 성공적으로 반영되었습니다!");
+        }
+
+        function openDisplayWindow() {
+            window.open('display.html', '_blank', 'width=1350,height=850');
+        }
+
+        function generateNews() {
+            pendingNews = newsList[Math.floor(Math.random() * newsList.length)];
+            const target = appState.stocks.find(s => s.id === pendingNews.stockId);
+            const sign = pendingNews.change > 0 ? '+' : '';
+
+            document.getElementById('adNewsTitle').innerText = pendingNews.title;
+            document.getElementById('adNewsDesc').innerText = pendingNews.desc;
+            document.getElementById('adNewsEffect').innerText = `예상 시세 변화: [${target.name}] ${sign}${pendingNews.change} 코인`;
+            document.getElementById('adminApproveBtn').disabled = false;
+        }
+
+        function approveNews() {
+            if(!pendingNews) return;
+            const target = appState.stocks.find(s => s.id === pendingNews.stockId);
+            target.price += pendingNews.change;
+            if(target.price < 1) target.price = 1;
+            target.change = pendingNews.change;
+
+            appState.activeEvent = null; // 뉴스가 승인되면 돌발 팝업 해제
+            appState.news = {
+                title: pendingNews.title,
+                desc: pendingNews.desc,
+                effect: `[시세 적용 완료] ${target.name} ${pendingNews.change > 0 ? '+' : ''}${pendingNews.change} 코인`
+            };
+
+            document.getElementById('adminApproveBtn').disabled = true;
+            broadcastState();
+            alert("대형 스크린에 시세 반영 뉴스가 송출되었습니다!");
+        }
+
+        function drawEventCard() {
+            const events = [
+                { title: "🎤 면접관(매니저)의 기습 질문!", desc: "“우리 팀의 가장 큰 강점은?” (10초 안에 멋지게 답한 팀은 스피치/면접주 가치 상승!)" },
+                { title: "😱 지원 기업 서류전형 탈락 통보!", desc: "“자기소개서 미흡으로 탈락 위험!” (자기소개서주가 없는 팀은 즉시 감점 적용)" },
+                { title: "🤝 지인 추천 인맥 찬스 발동!", desc: "“네트워킹 보유 팀에게 비공개 채용 정보가 제공되었습니다!”" },
+                { title: "💼 1:1 취업 전문 컨설팅 기회!", desc: "“원하는 자산 하나를 지정하여 코인 가치를 상승시키세요!”" }
+            ];
+            const ev = events[Math.floor(Math.random() * events.length)];
+            
+            document.getElementById('adEventTitle').innerText = ev.title;
+            document.getElementById('adEventDesc').innerText = ev.desc;
+
+            appState.activeEvent = ev;
+            broadcastState();
+        }
+
+        window.onload = initAdmin;
+    </script>
+</body>
+</html>
