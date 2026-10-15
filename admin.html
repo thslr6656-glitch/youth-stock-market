@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ 청춘 주식시장 - 관리자 패널</title>
+    <!-- 실시간 통신을 위한 PeerJS 라이브러리 -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-blue: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+            --accent-purple: #a855f7;
+            --text-main: #f8fafc;
+            --border-color: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+        header { background: linear-gradient(90deg, #1e1b4b, #312e81); padding: 12px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #4338ca; }
+        header h1 { font-size: 1.2rem; color: #818cf8; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .card-title { font-size: 1rem; font-weight: bold; padding-bottom: 4px; border-bottom: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        button { background-color: #2563eb; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.9rem; }
+        button:hover { opacity: 0.9; }
+        .btn-green { background-color: var(--accent-green); }
+        .btn-yellow { background-color: var(--accent-yellow); color: #000; }
+        .btn-purple { background-color: var(--accent-purple); }
+        .news-preview { background: #0f172a; padding: 10px; border-radius: 6px; font-size: 0.85rem; line-height: 1.4; }
+        .sheet-container { overflow-x: auto; max-height: 350px; overflow-y: auto; }
+        .sheet-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.8rem; }
+        .sheet-table th, .sheet-table td { border: 1px solid var(--border-color); padding: 4px; }
+        .sheet-table th { background: #0f172a; color: var(--accent-blue); position: sticky; top: 0; }
+        .sheet-table input { width: 40px; background: #0f172a; border: 1px solid #475569; color: white; text-align: center; padding: 4px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>⚙️ 관리자 컨트롤러</h1>
+        <div>
+            <span id="connStatus" style="font-size: 0.85rem; color: var(--accent-yellow);">연결 중... 🟡</span>
+            <button onclick="connectToServer()" class="btn-green" style="padding: 4px 8px; font-size:0.75rem; margin-left:6px;">재연결</button>
+        </div>
+    </header>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="card">
+            <div class="card-title">
+                <span>📰 가상 뉴스 및 시세 반영</span>
+                <button class="btn-yellow" onclick="generateNews()">🎲 뉴스 뽑기</button>
+            </div>
+            <div class="news-preview">
+                <div style="font-weight: bold; color:var(--accent-blue);" id="adNewsTitle">뉴스 대기 중...</div>
+                <div id="adNewsDesc" style="color: #cbd5e1; margin-top:4px;">버튼을 눌러 뉴스를 생성하세요.</div>
+                <div id="adNewsEffect" style="color: var(--accent-yellow); margin-top:4px;">영향: 없음</div>
+            </div>
+            <button class="btn-green" id="adminApproveBtn" onclick="approveNews()" disabled>✅ MC 승인 (스크린 즉시 반영)</button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>🎯 돌발 이벤트 연출</span>
+                <button class="btn-purple" onclick="drawEventCard()">🃏 이벤트 발동</button>
+            </div>
+            <div class="news-preview">
+                <div style="font-weight: bold; color: var(--accent-yellow);" id="adEventTitle">대기 중</div>
+                <div id="adEventDesc" style="color: #cbd5e1; margin-top:4px;">버튼을 누르면 대형 스크린에 팝업이 뜹니다.</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>📥 1~10팀 수량 일괄 관리</span>
+                <button class="btn-green" onclick="saveSheetData()">💾 수량 적용</button>
+            </div>
+            <div class="sheet-container">
+                <table class="sheet-table">
+                    <thead><tr id="sheetHeader"><th>팀</th></tr></thead>
+                    <tbody id="sheetBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ROOM_ID = "youth-stock-market-room-2026-v2";
+        let peer = new Peer();
+        let conn = null;
+
+        let appState = {
+            stocks: [
+                { id: 'speech', name: '스피치/면접주', price: 10, change: 0 },
+                { id: 'resume', name: '자기소개서주', price: 10, change: 0 },
+                { id: 'portfolio', name: '포트폴리오주', price: 10, change: 0 },
+                { id: 'english', name: '공인어학주', price: 10, change: 0 },
+                { id: 'license', name: '직무자격증주', price: 10, change: 0 },
+                { id: 'intern', name: '인턴십경험주', price: 10, change: 0 },
+                { id: 'activity', name: '대외활동주', price: 10, change: 0 },
+                { id: 'network', name: '네트워킹주', price: 10, change: 0 },
+                { id: 'ai_tech', name: 'AI활용역량주', price: 10, change: 0 },
+                { id: 'major', name: '전공지식주', price: 10, change: 0 }
+            ],
+            teams: Array.from({ length: 10 }, (_, i) => ({
+                name: `${i + 1}팀`,
+                holdings: { speech: 1, resume: 1, portfolio: 0, english: 0, license: 1, intern: 0, activity: 1, network: 0, ai_tech: 0, major: 1 }
+            })),
+            news: { title: "뉴스 대기 중...", desc: "뉴스를 생성하고 승인해주세요.", effect: "영향: 없음" },
+            activeEvent: null
+        };
+
+        let pendingNews = null;
+
+        const newsList = [
+            { title: "[속보] 대기업, 면접관 대면 평가 대폭 확대", desc: "심층 대면 면접 비중이 70%로 확대되었습니다.", stockId: 'speech', change: 4 },
+            { title: "[단독] 표절 자소서 적발 AI 서류검증 도입", desc: "획일화된 자소서 제출자에 대한 감점이 예고되었습니다.", stockId: 'resume', change: -3 },
+            { title: "[특집] 실무 포트폴리오 중심 채용 유행", desc: "스펙을 배제하고 실무 작업물 중심 채용이 급증합니다.", stockId: 'portfolio', change: 3 },
+            { title: "[기획] 생성형 AI 활용 능력 필수 채용 조건화", desc: "AI 도구를 다루는 인재에게 가산점이 부여됩니다.", stockId: 'ai_tech', change: 4 },
+            { title: "[Market] 인턴십 경험 보유자 몸값 고공행진", desc: "실무 경험을 가진 인재의 수요가 급증합니다.", stockId: 'intern', change: 3 }
+        ];
+
+        peer.on('open', () => {
+            connectToServer();
+        });
+
+        function connectToServer() {
+            document.getElementById('connStatus').innerText = "연결 시도 중... 🟡";
+            document.getElementById('connStatus').style.color = "var(--accent-yellow)";
+
+            conn = peer.connect(ROOM_ID);
+
+            conn.on('open', () => {
+                document.getElementById('connStatus').innerText = "실시간 연동 완료 🟢";
+                document.getElementById('connStatus').style.color = "var(--accent-green)";
+                broadcastState();
+            });
+
+            conn.on('error', () => {
+                document.getElementById('connStatus').innerText = "연결 실패 🔴";
+                document.getElementById('connStatus').style.color = "var(--accent-red)";
+            });
+        }
+
+        function broadcastState() {
+            if (conn && conn.open) {
+                conn.send(appState);
+            }
+        }
+
+        window.onload = () => {
+            renderSheet();
+        };
+
+        function renderSheet() {
+            const headerRow = document.getElementById('sheetHeader');
+            const sheetBody = document.getElementById('sheetBody');
+            
+            headerRow.innerHTML = '<th>팀</th>';
+            appState.stocks.forEach(stock => {
+                headerRow.innerHTML += `<th>${stock.name.split('/')[0]}</th>`;
+            });
+
+            sheetBody.innerHTML = '';
+            appState.teams.forEach((team, teamIdx) => {
+                let rowHtml = `<tr><td style="font-weight:bold;">${team.name}</td>`;
+                appState.stocks.forEach(stock => {
+                    const count = team.holdings[stock.id] || 0;
+                    rowHtml += `<td><input type="number" id="cell_${teamIdx}_${stock.id}" value="${count}"></td>`;
+                });
+                rowHtml += `</tr>`;
+                sheetBody.innerHTML += rowHtml;
+            });
+        }
+
+        function saveSheetData() {
+            appState.teams.forEach((team, teamIdx) => {
+                appState.stocks.forEach(stock => {
+                    const inputElem = document.getElementById(`cell_${teamIdx}_${stock.id}`);
+                    if (inputElem) {
+                        team.holdings[stock.id] = Math.max(0, parseInt(inputElem.value) || 0);
+                    }
+                });
+            });
+            broadcastState();
+            alert("수량이 대형 스크린으로 전송되었습니다!");
+        }
+
+        function generateNews() {
+            pendingNews = newsList[Math.floor(Math.random() * newsList.length)];
+            const target = appState.stocks.find(s => s.id === pendingNews.stockId);
+            const sign = pendingNews.change > 0 ? '+' : '';
+
+            document.getElementById('adNewsTitle').innerText = pendingNews.title;
+            document.getElementById('adNewsDesc').innerText = pendingNews.desc;
+            document.getElementById('adNewsEffect').innerText = `예상 효과: [${target.name}] ${sign}${pendingNews.change} 코인`;
+            document.getElementById('adminApproveBtn').disabled = false;
+        }
+
+        function approveNews() {
+            if(!pendingNews) return;
+            const target = appState.stocks.find(s => s.id === pendingNews.stockId);
+            target.price += pendingNews.change;
+            if(target.price < 1) target.price = 1;
+            target.change = pendingNews.change;
+
+            appState.activeEvent = null;
+            appState.news = {
+                title: pendingNews.title,
+                desc: pendingNews.desc,
+                effect: `[시세 적용 완료] ${target.name} ${pendingNews.change > 0 ? '+' : ''}${pendingNews.change} 코인`
+            };
+
+            broadcastState();
+            document.getElementById('adminApproveBtn').disabled = true;
+            alert("대형 스크린으로 시세 적용 뉴스가 전송되었습니다!");
+        }
+
+        function drawEventCard() {
+            const events = [
+                { title: "🎤 면접관의 기습 질문!", desc: "10초 내 답변 시 스피치/면접주 +2코인!" },
+                { title: "😱 서류전형 탈락 통보!", desc: "자기소개서주 미보유 팀 -2코인 감점!" },
+                { title: "🤝 지인 추천 인맥 찬스!", desc: "네트워킹 보유 팀 추가 가치 상승!" }
+            ];
+            const ev = events[Math.floor(Math.random() * events.length)];
+            
+            document.getElementById('adEventTitle').innerText = ev.title;
+            document.getElementById('adEventDesc').innerText = ev.desc;
+
+            appState.activeEvent = ev;
+            broadcastState();
+        }
+    </script>
+</body>
+</html>
